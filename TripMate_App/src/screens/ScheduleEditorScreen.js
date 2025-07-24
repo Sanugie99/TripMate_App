@@ -35,6 +35,8 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateTabs, setDateTabs] = useState([]);
 
+
+
   useEffect(() => {
     if (isEditing && existingSchedule) {
       const dailyPlanWithTempIds = {};
@@ -81,9 +83,20 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         const sortedDates = Object.keys(newDailyPlan).sort();
         
         // 🚀 [수정] 상태 업데이트 순서를 명확히 하여 지도 갱신을 보장
-        setSchedule({ ...response.data, dailyPlan: newDailyPlan });
+        // 자동 일정 생성 후에도 목적지 정보를 유지하기 위해 plannerData 정보 추가
+        setSchedule({ 
+          ...response.data, 
+          dailyPlan: newDailyPlan,
+          arrival: plannerData.destination, // 목적지 정보 추가
+          departure: plannerData.departure  // 출발지 정보 추가
+        });
         setDateTabs(sortedDates);
         setSelectedDate(sortedDates[0]); // 가장 마지막에 업데이트하여 변경 감지를 유도
+        
+        // 지도 갱신을 위한 강제 리렌더링
+        setTimeout(() => {
+          setSelectedDate(sortedDates[0]);
+        }, 100);
 
       }
     } catch (err) {
@@ -94,8 +107,9 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   };
 
   const handleRecommendPlaces = async () => {
-    // 🚀 [최종 수정] 목적지 정보를 가장 안전하게 가져오고, 모든 예외 상황을 처리합니다.
-    const destination = isEditing ? schedule?.arrival : plannerData?.destination;
+    // 목적지 정보 가져오기
+    const destination = schedule?.arrival || plannerData?.destination;
+    
     if (!destination) {
       Alert.alert('알림', '추천 장소를 검색할 목적지를 찾을 수 없습니다.');
       return;
@@ -223,13 +237,14 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
         {/* 🚀 [수정] 항상 유효한 dailyPlan 객체를 전달하도록 보장 */}
         <ScheduleMapComponent 
           dailyPlan={schedule?.dailyPlan ?? {}} 
           selectedDate={selectedDate} 
-          selectedPlace={setSelectedPlace} 
+          selectedPlace={selectedPlace} 
         />
       </View>
 
@@ -279,17 +294,16 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      {/* 🚀 [수정] transparent 옵션과 modalOverlay를 다시 적용하여 카드 형태 유지 */}
-      <Modal visible={isRecommendModalVisible} onRequestClose={() => setRecommendModalVisible(false)} transparent animationType="fade">
-        {/* The overlay now has its own dedicated View */}
+      {/* 추천 장소 모달 */}
+      {isRecommendModalVisible && (
         <View style={styles.modalOverlay}>
-          {/* The card's shape and style are defined in this View */}
           <View style={styles.modalContent}>
-            {/* SafeAreaView is now safely inside the card */}
             <SafeAreaView style={styles.modalSafeArea}>
               <Text style={styles.modalTitle}>추천 장소</Text>
               <View style={styles.modalWrapper}>
-                {recommendLoading ? <ActivityIndicator size="large" /> : (
+                {recommendLoading ? (
+                  <ActivityIndicator size="large" />
+                ) : (
                   <FlatList
                     data={recommendedPlaces}
                     keyExtractor={(item) => item.tempId}
@@ -304,6 +318,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
                         </TouchableOpacity>
                       </View>
                     )}
+                    ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20}}>추천 장소가 없습니다.</Text>}
                   />
                 )}
               </View>
@@ -311,9 +326,9 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
             </SafeAreaView>
           </View>
         </View>
-      </Modal>
-      {/* 🚀 [수정] transparent 옵션과 modalOverlay를 다시 적용하여 카드 형태 유지 */}
-      <Modal visible={isSearchModalVisible} onRequestClose={() => setSearchModalVisible(false)} transparent animationType="fade">
+      )}
+      {/* 위치 검색 모달 */}
+      {isSearchModalVisible && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <SafeAreaView style={styles.modalSafeArea}>
@@ -339,8 +354,9 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
             </SafeAreaView>
           </View>
         </View>
-      </Modal>
-    </SafeAreaView>
+      )}
+      </SafeAreaView>
+    </>
   );
 };
 
@@ -358,8 +374,28 @@ const styles = StyleSheet.create({
   tabText: { color: '#333', fontWeight: '600', fontSize: 14 },
   activeTabText: { color: 'white' },
   noDataText: { textAlign: 'center', marginTop: 40, color: '#6c757d', fontSize: 16 },
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { width: '90%', height: '70%', backgroundColor: 'white', borderRadius: 15, overflow: 'hidden' },
+  modalOverlay: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    elevation: 9999
+  },
+  modalContent: { 
+    width: '90%', 
+    height: '70%', 
+    backgroundColor: 'white', 
+    borderRadius: 15, 
+    overflow: 'hidden',
+    zIndex: 10000,
+    elevation: 10000
+  },
   modalSafeArea: { flex: 1, alignItems: 'center' },
   modalWrapper: { flex: 1, width: '100%', marginTop: 10 },
   modalTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },

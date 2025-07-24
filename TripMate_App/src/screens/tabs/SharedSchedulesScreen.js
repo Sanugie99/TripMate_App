@@ -31,10 +31,10 @@ const SharedSchedulesScreen = ({ navigation }) => {
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.itemContainer}
-      onPress={() => navigation.navigate('ScheduleDetail', { scheduleId: item.id })}
+      onPress={() => navigation.navigate('ScheduleDetail', { scheduleId: item.id, fromMySchedules: false })}
     >
       <Text style={styles.itemTitle}>{item.title || '제목 없음'}</Text>
-      <Text style={styles.itemUser}>작성자: {item.user?.username || '알 수 없음'}</Text>
+      <Text style={styles.itemUser}>작성자: {item.username || '알 수 없음'}</Text>
       <Text style={styles.itemDate}>{new Date(item.startDate).toLocaleDateString()} - {new Date(item.endDate).toLocaleDateString()}</Text>
     </TouchableOpacity>
   );

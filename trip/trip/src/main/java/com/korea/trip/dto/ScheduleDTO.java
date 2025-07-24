@@ -53,6 +53,8 @@ public class ScheduleDTO {
         String userId = schedule.getUser() != null ? schedule.getUser().getUserId() : null;
         String username = schedule.getUser() != null ? schedule.getUser().getUsername() : "알 수 없음";
 
+
+
         return ScheduleDTO.builder()
                 .id(schedule.getId())
                 .title(schedule.getTitle())

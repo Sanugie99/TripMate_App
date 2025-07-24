@@ -21,7 +21,7 @@ public class CommentDto {
         this.content = comment.getContent();
         this.createdAt = comment.getCreatedAt();
         if (comment.getUser() != null) {
-            this.user = new UserDto(comment.getUser());
+            this.user = UserDto.from(comment.getUser());
         }
         this.replies = comment.getReplies().stream()
                 .map(CommentDto::new)

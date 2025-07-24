@@ -70,7 +70,7 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>어디로 떠나볼까요?</Text>
+        <Text style={styles.headerTitle}>Trip Mate</Text>
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}

@@ -14,7 +14,7 @@ const ScheduleHeader = ({ schedule, isOwner, onEdit, onLike, onShare, onCopy }) 
           </TouchableOpacity>
         )}
       </View>
-      <Text style={styles.authorText}>작성자: {schedule.user?.username || '알 수 없음'}</Text>
+      <Text style={styles.authorText}>작성자: {schedule.username || '알 수 없음'}</Text>
       <Text style={styles.dateRange}>
         {dayjs(schedule.startDate).format('YYYY.MM.DD')} - {dayjs(schedule.endDate).format('YYYY.MM.DD')}
       </Text>

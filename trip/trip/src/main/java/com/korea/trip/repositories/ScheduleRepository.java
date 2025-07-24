@@ -22,6 +22,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Transactional
     void deleteByUserId(Long userId);
 
-    @Query("SELECT s FROM Schedule s LEFT JOIN FETCH s.places WHERE s.id = :id")
+    @Query("SELECT s FROM Schedule s LEFT JOIN FETCH s.places LEFT JOIN FETCH s.user WHERE s.id = :id")
     Optional<Schedule> findByIdWithPlaces(@Param("id") Long id);
 }
