@@ -10,8 +10,8 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/tripmate_db
     driver-class-name: com.mysql.cj.jdbc.Driver 
-    username: tripmate_user
-    password: patty2331
+    username: root
+    password: 1234
   jpa:
     hibernate:
       ddl-auto: update

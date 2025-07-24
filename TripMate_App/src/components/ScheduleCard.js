@@ -10,7 +10,7 @@ const ScheduleCard = ({ item, onShare, onDelete }) => {
   return (
     <View style={styles.card}>
       <TouchableOpacity 
-        onPress={() => navigation.navigate('ScheduleDetail', { scheduleId: item.id })}
+        onPress={() => navigation.navigate('ScheduleDetail', { scheduleId: item.id, fromMySchedules: true })}
       >
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{item.title}</Text>

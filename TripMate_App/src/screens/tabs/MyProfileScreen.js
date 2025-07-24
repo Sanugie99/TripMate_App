@@ -82,7 +82,10 @@ const MyProfileScreen = () => {
   const renderScheduleItem = ({ item }) => (
     <TouchableOpacity
       style={styles.scheduleItem}
-      onPress={() => navigation.navigate('ScheduleDetail', { scheduleId: item.id })}
+      onPress={() => navigation.navigate('ScheduleDetail', { 
+        scheduleId: item.id, 
+        fromMySchedules: activeTab === 'my' 
+      })}
     >
       <Text style={styles.scheduleTitle}>{item.title}</Text>
       <View style={styles.buttonGroup}>

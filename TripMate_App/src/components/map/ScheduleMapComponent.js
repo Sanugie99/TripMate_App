@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import MapView, { Marker, Polyline } from 'react-native-maps';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 const ScheduleMapComponent = ({ dailyPlan, selectedDate, selectedPlace }) => {
   const mapRef = useRef(null);
@@ -16,6 +16,12 @@ const ScheduleMapComponent = ({ dailyPlan, selectedDate, selectedPlace }) => {
     const lng = p.lng ?? p.longitude;
     return typeof lat === 'number' && typeof lng === 'number';
   });
+
+
+
+
+
+
 
   const path = validPlaces.map(p => ({
     latitude: p.lat ?? p.latitude,
@@ -51,36 +57,56 @@ const ScheduleMapComponent = ({ dailyPlan, selectedDate, selectedPlace }) => {
         animated: true,
       });
     }
-  }, [selectedPlace, path, isMapReady]); // isMapReady 의존성 추가
+  }, [selectedPlace, path, isMapReady, dailyPlan, selectedDate]); // dailyPlan과 selectedDate 의존성 추가
 
   return (
     <MapView
       ref={mapRef}
       style={styles.map}
       initialRegion={initialRegion} // 항상 고정된 초기 지역 사용
-      onMapReady={() => setMapReady(true)} // 🚀 [추가] 지도가 준비되면 상태 업데이트
+      onMapReady={() => setMapReady(true)} // 지도가 준비되면 상태 업데이트
+      showsUserLocation={false}
+      showsMyLocationButton={false}
+      showsCompass={true}
+      showsScale={true}
+      showsBuildings={true}
+      showsTraffic={false}
+      showsIndoors={true}
+      mapType="standard"
+      loadingEnabled={true}
+      loadingIndicatorColor="#007BFF"
+      loadingBackgroundColor="#ffffff"
     >
-      {isMapReady && validPlaces.map((place, idx) => { // isMapReady일 때만 마커 렌더링
+      {validPlaces.map((place, idx) => { // iOS에서는 isMapReady 조건 제거
         const coord = {
           latitude: place.lat ?? place.latitude,
           longitude: place.lng ?? place.longitude,
         };
+
         return (
           <Marker
-            key={`${place.tempId}-${idx}`}
+            key={`${place.tempId || place.id || idx}-${idx}`}
             coordinate={coord}
-            title={place.name}
-            description={place.address}
+            title={place.name || '장소'}
+            description={place.address || ''}
             pinColor={selectedPlace?.tempId === place.tempId ? 'blue' : 'red'}
+            tracksViewChanges={false} // iOS에서 성능 최적화
+            opacity={1}
+            flat={false}
+            anchor={{ x: 0.5, y: 1.0 }}
+            centerOffset={{ x: 0, y: 0 }}
           />
         );
       })}
 
-      {isMapReady && path.length > 1 && ( // isMapReady일 때만 폴리라인 렌더링
+      {path.length > 1 && ( // iOS에서는 isMapReady 조건 제거
         <Polyline
           coordinates={path}
           strokeColor="#007BFF"
-          strokeWidth={4}
+          strokeWidth={Platform.OS === 'ios' ? 3 : 4}
+          lineDashPattern={Platform.OS === 'ios' ? [1, 0] : undefined}
+          geodesic={true}
+          tappable={false}
         />
       )}
     </MapView>

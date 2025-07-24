@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.korea.trip.dto.CommentDto;
-import com.korea.trip.security.UserPrincipal;
+import com.korea.trip.models.UserPrincipal;
 import com.korea.trip.service.CommentService;
 
 import lombok.RequiredArgsConstructor;
@@ -42,5 +43,14 @@ public class CommentController {
 
         CommentDto newComment = commentService.createComment(scheduleId, content, userPrincipal.getId(), parentId);
         return ResponseEntity.ok(newComment);
+    }
+
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        
+        commentService.deleteComment(commentId, userPrincipal.getId());
+        return ResponseEntity.ok().build();
     }
 }

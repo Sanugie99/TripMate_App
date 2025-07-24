@@ -58,4 +58,17 @@ public class CommentService {
         Comment savedComment = commentRepository.save(comment);
         return new CommentDto(savedComment);
     }
+
+    @Transactional
+    public void deleteComment(Long commentId, Long userId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid comment Id:" + commentId));
+        
+        // 댓글 작성자만 삭제할 수 있도록 확인
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("You can only delete your own comments");
+        }
+        
+        commentRepository.delete(comment);
+    }
 }

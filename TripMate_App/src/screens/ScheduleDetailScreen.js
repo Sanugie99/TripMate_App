@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity,
-  TextInput, SectionList, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform
+  TextInput, SectionList, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, StatusBar
 } from 'react-native';
 import client from '../api/client';
 import dayjs from 'dayjs';
@@ -44,7 +44,7 @@ const CommentItem = ({ comment, onReply, onDelete, user }) => {
 
 const ScheduleDetailScreen = ({ route }) => {
   const navigation = useNavigation();
-  const { scheduleId } = route.params;
+  const { scheduleId, fromMySchedules } = route.params;
   const { user } = useAuth();
 
   const [schedule, setSchedule] = useState(null);
@@ -67,16 +67,22 @@ const ScheduleDetailScreen = ({ route }) => {
       setSelectedDate(null);
 
       try {
-        const [scheduleResponse, commentsResponse] = await Promise.all([
-          client.get(`/api/schedule/${scheduleId}`),
-          client.get(`/api/schedule/${scheduleId}/comments`)
-        ]);
+        const scheduleResponse = await client.get(`/api/schedule/${scheduleId}`);
+        
+        // 🚀 [수정] 공개된 일정이고 내 일정에서 들어온 경우가 아닐 때만 댓글 데이터 불러오기
+        let commentsResponse = null;
+        if (scheduleResponse.data && scheduleResponse.data.public && !fromMySchedules) {
+          commentsResponse = await client.get(`/api/schedule/${scheduleId}/comments`);
+        }
 
         if (!isActive) return; // 데이터를 불러오는 동안 화면을 벗어나면 상태 업데이트 중단
 
         // 2. 새로운 데이터로 상태 업데이트
         if (scheduleResponse.data) {
           const rawSchedule = scheduleResponse.data;
+
+
+          
           const dailyPlan = (rawSchedule.places || []).reduce((acc, place) => {
             const date = dayjs(place.date).format('YYYY-MM-DD');
             if (!acc[date]) acc[date] = [];
@@ -89,7 +95,7 @@ const ScheduleDetailScreen = ({ route }) => {
           const dates = Object.keys(dailyPlan).sort();
           setSelectedDate(dates[0] || null);
         }
-        if (commentsResponse.data) {
+        if (commentsResponse && commentsResponse.data) {
           setComments(commentsResponse.data);
         }
       } catch (error) {
@@ -124,9 +130,10 @@ const ScheduleDetailScreen = ({ route }) => {
 
   const handleShare = async () => {
     try {
-      await client.put(`/api/schedule/${scheduleId}/share`, { isPublic: !schedule.isPublic });
-      setSchedule(prev => ({ ...prev, isPublic: !prev.isPublic }));
-      Alert.alert('성공', `일정이 ${!schedule.isPublic ? '공개' : '비공개'} 처리되었습니다.`);
+      const currentIsPublic = schedule.public || false;
+      await client.put(`/api/schedule/${scheduleId}/share`, { isPublic: !currentIsPublic });
+      setSchedule(prev => ({ ...prev, public: !currentIsPublic }));
+      Alert.alert('성공', `일정이 ${!currentIsPublic ? '공개' : '비공개'} 처리되었습니다.`);
     } catch (error) {
       Alert.alert('오류', '공유 상태 변경에 실패했습니다.');
     }
@@ -134,12 +141,17 @@ const ScheduleDetailScreen = ({ route }) => {
 
   const handleCreateComment = async () => {
     if (!newComment.trim()) return;
+    
+    // 🚀 [추가] 로딩 상태 추가
+    const originalComment = newComment;
+    const originalReplyTo = replyTo;
+    
     try {
       const requestBody = {
         content: newComment,
         parentId: replyTo ? replyTo.id : null,
       };
-      // 🚀 [수정] API 호출 후, 전체 목록을 다시 불러오는 대신 로컬 상태를 직접 업데이트
+      
       const response = await client.post(`/api/schedule/${scheduleId}/comments`, requestBody);
       const newCommentData = response.data;
 
@@ -149,7 +161,10 @@ const ScheduleDetailScreen = ({ route }) => {
           const findAndAddReply = (comments) => {
             return comments.map(comment => {
               if (comment.id === replyTo.id) {
-                return { ...comment, replies: [...comment.replies, newCommentData] };
+                return { 
+                  ...comment, 
+                  replies: [...(comment.replies || []), newCommentData] 
+                };
               }
               if (comment.replies && comment.replies.length > 0) {
                 return { ...comment, replies: findAndAddReply(comment.replies) };
@@ -167,6 +182,9 @@ const ScheduleDetailScreen = ({ route }) => {
       setNewComment('');
       setReplyTo(null);
     } catch (error) {
+      // 🚀 [추가] 실패 시 원래 상태로 복원
+      setNewComment(originalComment);
+      setReplyTo(originalReplyTo);
       Alert.alert('오류', '댓글 작성에 실패했습니다.');
     }
   };
@@ -178,24 +196,28 @@ const ScheduleDetailScreen = ({ route }) => {
         {
           text: "삭제",
           onPress: async () => {
+            // 🚀 [추가] 삭제 전 원본 상태 저장
+            const originalComments = comments;
+            
             try {
-              await client.delete(`/api/comments/${commentId}`);
-              // 🚀 [수정] API 호출 후, 전체 목록을 다시 불러오는 대신 로컬 상태를 직접 업데이트
+              // 🚀 [수정] 먼저 UI에서 제거 (낙관적 업데이트)
               setComments(prevComments => {
                 const removeComment = (comments) => {
-                  return comments.filter(comment => {
-                    if (comment.id === commentId) {
-                      return false;
-                    }
+                  return comments.map(comment => {
                     if (comment.replies && comment.replies.length > 0) {
-                      comment.replies = removeComment(comment.replies);
+                      return { ...comment, replies: removeComment(comment.replies) };
                     }
-                    return true;
-                  });
+                    return comment;
+                  }).filter(comment => comment.id !== commentId);
                 };
                 return removeComment(prevComments);
               });
+              
+              // API 호출
+              await client.delete(`/api/schedule/${scheduleId}/comments/${commentId}`);
             } catch (error) {
+              // 🚀 [추가] 실패 시 원본 상태로 복원
+              setComments(originalComments);
               Alert.alert('오류', '댓글 삭제에 실패했습니다.');
             }
           },
@@ -232,20 +254,53 @@ const ScheduleDetailScreen = ({ route }) => {
     return <View style={styles.centered}><Text>일정 정보를 불러오지 못했습니다.</Text></View>;
   }
 
-  const isOwner = user && schedule.user && String(user.userId) === String(schedule.user.userId);
+  const isOwner = user && schedule.userId && String(user.userId) === String(schedule.userId);
+  
+
+
+  // 🚀 [추가] 실제 총 댓글 개수 계산 (일반 댓글 + 답글)
+  const totalCommentCount = comments.reduce((total, comment) => {
+    return total + 1 + (comment.replies ? comment.replies.length : 0);
+  }, 0);
 
   const sections = [
     { title: '장소 목록', data: schedule.dailyPlan && selectedDate ? schedule.dailyPlan[selectedDate] : [], renderItem: renderPlaceItem },
-    { title: '댓글', data: comments, renderItem: ({ item }) => <CommentItem comment={item} onReply={setReplyTo} onDelete={handleDeleteComment} user={user} /> },
   ];
+  
+  // 🚀 [수정] 공개된 일정이고 내 일정에서 들어온 경우가 아닐 때만 댓글 섹션 추가
+  if (schedule.public && !fromMySchedules) {
+    sections.push({ 
+      title: '댓글', 
+      data: comments, 
+      renderItem: ({ item }) => <CommentItem comment={item} onReply={setReplyTo} onDelete={handleDeleteComment} user={user} /> 
+    });
+  }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.mapContainer}>
-          <ScheduleMapComponent dailyPlan={schedule.dailyPlan} selectedDate={selectedDate} selectedPlace={selectedPlace} />
-        </View>
-        <View style={styles.contentContainer}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+      <SafeAreaView style={styles.safeArea}>
+                <KeyboardAvoidingView 
+          style={{ flex: 1 }} 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 60}
+          enabled={true}
+        >
+          <ScrollView 
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ 
+              paddingBottom: totalCommentCount * 1
+            }}
+            bounces={true}
+            alwaysBounceVertical={false}
+            nestedScrollEnabled={true}
+          >
+            <View style={styles.mapContainer}>
+              <ScheduleMapComponent dailyPlan={schedule.dailyPlan} selectedDate={selectedDate} selectedPlace={selectedPlace} />
+            </View>
+            <View style={styles.contentContainer}>
           <View style={styles.header}>
             <View style={styles.headerTopRow}>
               <Text style={styles.title} numberOfLines={1}>{schedule.title}</Text>
@@ -255,7 +310,7 @@ const ScheduleDetailScreen = ({ route }) => {
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={styles.authorText}>작성자: {schedule.user?.username || '알 수 없음'}</Text>
+            <Text style={styles.authorText}>작성자: {schedule.username || '알 수 없음'}</Text>
             <Text style={styles.dateRange}>
               {dayjs(schedule.startDate).format('YYYY.MM.DD')} - {dayjs(schedule.endDate).format('YYYY.MM.DD')}
             </Text>
@@ -272,8 +327,8 @@ const ScheduleDetailScreen = ({ route }) => {
               </View>
               {isOwner ? (
                 <TouchableOpacity onPress={handleShare} style={styles.iconButton}>
-                  <Ionicons name={schedule.isPublic ? "lock-open-outline" : "lock-closed-outline"} size={20} color="#17a2b8" />
-                  <Text style={styles.shareText}>{schedule.isPublic ? '공유 중' : '비공개'}</Text>
+                  <Ionicons name={(schedule.public || false) ? "lock-open-outline" : "lock-closed-outline"} size={20} color="#17a2b8" />
+                  <Text style={styles.shareText}>{(schedule.public || false) ? '공유 중' : '비공개'}</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={handleCopyToMySchedules} style={styles.copyButton}>
@@ -294,51 +349,59 @@ const ScheduleDetailScreen = ({ route }) => {
             </ScrollView>
           </View>
 
-          <SectionList
-            sections={sections}
-            keyExtractor={(item, index) => item.id?.toString() || `item-${index}`}
-            renderItem={({ section, ...rest }) => section.renderItem({ ...rest })}
-            renderSectionHeader={({ section: { title, data } }) => (
-              data.length > 0 ? <Text style={styles.sectionTitle}>{title}</Text> : null
-            )}
-            stickySectionHeadersEnabled={false}
-            style={{ flex: 1 }}
-          />
-          
-          {/* 🚀 [수정] 세련된 댓글 입력창 UI */}
-          <View style={styles.commentInputContainer}>
-            {replyTo && (
-              <View style={styles.replyingToContainer}>
-                <Text style={styles.replyingToText}>@{replyTo?.user?.username || '익명'}님에게 답글 남기는 중...</Text>
-                <TouchableOpacity onPress={() => setReplyTo(null)}>
-                  <Ionicons name="close-circle-outline" size={20} color="#6c757d" />
+                      <View>
+              {sections.map((section, sectionIndex) => (
+                <View key={sectionIndex}>
+                  {section.data.length > 0 && (
+                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                  )}
+                  {section.data.map((item, itemIndex) => (
+                    <View key={item.id?.toString() || `item-${itemIndex}`}>
+                      {section.renderItem({ item, index: itemIndex })}
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+                  </View>
+            {/* 🚀 [수정] 공개된 일정이고 내 일정에서 들어온 경우가 아닐 때만 댓글 입력창 표시 */}
+            {schedule.public && !fromMySchedules && (
+              <View style={styles.commentInputContainer}>
+              {replyTo && (
+                <View style={styles.replyingToContainer}>
+                  <Text style={styles.replyingToText}>@{replyTo?.user?.username || '익명'}님에게 답글 남기는 중...</Text>
+                  <TouchableOpacity onPress={() => setReplyTo(null)}>
+                    <Ionicons name="close-circle-outline" size={20} color="#6c757d" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={styles.inputRow}>
+                <TextInput 
+                  style={styles.commentInput} 
+                  placeholder="따뜻한 댓글을 남겨주세요 :)" 
+                  value={newComment} 
+                  onChangeText={setNewComment} 
+                  placeholderTextColor="#868e96"
+                />
+                <TouchableOpacity style={styles.submitCommentButton} onPress={handleCreateComment}>
+                  <Ionicons name="send" size={20} color="white" />
                 </TouchableOpacity>
+                              </View>
               </View>
             )}
-            <View style={styles.inputRow}>
-              <TextInput 
-                style={styles.commentInput} 
-                placeholder="따뜻한 댓글을 남겨주세요 :)" 
-                value={newComment} 
-                onChangeText={setNewComment} 
-                placeholderTextColor="#868e96"
-              />
-              <TouchableOpacity style={styles.submitCommentButton} onPress={handleCreateComment}>
-                <Ionicons name="send" size={20} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
 // 🚀 [수정] 새로운 댓글 스타일 추가
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
+  safeArea: { flex: 1 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  mapContainer: { height: '35%', backgroundColor: '#e9ecef' },
+  mapContainer: { height: 300, backgroundColor: '#e9ecef' },
   contentContainer: { flex: 1, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, marginTop: -20 },
   header: { backgroundColor: 'white', padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -372,10 +435,22 @@ const styles = StyleSheet.create({
   deleteButton: { padding: 5, marginLeft: 10 },
   deleteButtonText: { color: 'red', fontSize: 12 },
   repliesContainer: { marginLeft: 20, borderLeftWidth: 1, borderLeftColor: '#e9ecef', marginTop: 10, paddingTop: 5 },
-  commentInputContainer: { padding: 10, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e9ecef' },
+
+
+  commentInputContainer: { 
+    padding: 10, 
+    paddingBottom: Platform.OS === 'ios' ? 10 : 40,
+    backgroundColor: '#fff', 
+    borderTopWidth: 1, 
+    borderTopColor: '#e9ecef',
+    minHeight: 60,
+  },
   replyingToContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, paddingHorizontal: 5 },
   replyingToText: { fontSize: 12, color: '#6c757d', flex: 1 },
-  inputRow: { flexDirection: 'row', alignItems: 'center' },
+  inputRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
   commentInput: { flex: 1, height: 40, backgroundColor: '#f1f3f5', borderRadius: 20, paddingHorizontal: 15, marginRight: 10 },
   submitCommentButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#007bff', justifyContent: 'center', alignItems: 'center' },
   submitCommentButtonText: { color: 'white', fontWeight: 'bold' },
