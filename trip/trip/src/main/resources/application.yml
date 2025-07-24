@@ -1,0 +1,32 @@
+server:
+  port: 5000
+korail:
+  service-key: VbGT1gAGtB0pWwVeEzwW/a3QsjZx5CnJrEwi4qXcekuJRem4Eai2V/NbbjlbVUh3DlxMu0Pg94aJrjOFqFryAQ==
+bus:
+  service-key: VbGT1gAGtB0pWwVeEzwW/a3QsjZx5CnJrEwi4qXcekuJRem4Eai2V/NbbjlbVUh3DlxMu0Pg94aJrjOFqFryAQ==
+kakao:
+  api-key: 1bf61ebd329fb75d565cfa8dcb9ab263
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/tripmate_db
+    driver-class-name: com.mysql.cj.jdbc.Driver 
+    username: tripmate_user
+    password: patty2331
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+       add-mappings: true
+  mail:
+    username: xodus021211@gmail.com
+    password: fbvq ilcg lgbf tvth
+app:
+  jwtSecret: 4z6B8E_a-r9T2w5y7x_d-fGjKlOnPqStVbYy_z-1s3u5w8x_A-D_F-H_J-L_N-P_R-T_V-X_Z-b_d-f_h-j
+  jwtExpirationInMs: 86400000
