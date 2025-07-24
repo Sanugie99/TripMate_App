@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 const CITIES = [
   { id: '1', name: '서울' }, { id: '2', name: '부산' }, { id: '3', name: '대구' },
   { id: '4', name: '인천' }, { id: '5', name: '광주' }, { id: '6', name: '대전' },
-  { id: '7', name: '울산' }, { id: '8', name: '세종' }, { id: '9', name: '제주' },
+  { id: '7', name: '울산' }, { id: '8', name: '세종' }, { id: '9', name: '경주' },
 ];
 
 const HomeScreen = () => {
