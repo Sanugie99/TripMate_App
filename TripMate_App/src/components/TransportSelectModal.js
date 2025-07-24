@@ -29,10 +29,37 @@ const TransportSelectModal = ({ visible, onClose, onSelect, mode, departure, arr
       const formattedDate = date.replace(/-/g, '');
       const requestBody = { departure, arrival, date: formattedDate, departureTime };
       const response = await client.post('/api/transport/search', requestBody);
-      setTransportData({
-        trains: response.data?.trains ?? [],
-        buses: response.data?.buses ?? [],
-      });
+
+      const parseTime = (timeStr) => `${timeStr.slice(0, 2)}:${timeStr.slice(2)}`;
+
+      // 데이터 파싱 전 유효성 검사 추가
+      const safeParse = (items) => {
+        if (!items || !Array.isArray(items)) return [];
+        return items
+          .filter(item => typeof item === 'string' && !item.includes('정보가 없습니다') && item.split('|').length >= 4)
+          .map(item => {
+            try {
+              const parts = item.split('|');
+              const timeParts = parts[2].split('→');
+              if (timeParts.length < 2) return null; // 시간 정보가 올바르지 않으면 제외
+              
+              return {
+                name: parts[0].trim(),
+                depTime: parseTime(timeParts[0].trim()),
+                arrTime: parseTime(timeParts[1].trim()),
+                price: parts[3].trim().replace('원', ''),
+              };
+            } catch {
+              return null; // 파싱 중 오류 발생 시 해당 항목 제외
+            }
+          })
+          .filter(Boolean); // null 항목 최종 제거
+      };
+
+      const trains = safeParse(response.data?.korailOptions);
+      const buses = safeParse(response.data?.busOptions);
+
+      setTransportData({ trains, buses });
     } catch (err) {
       setError('교통편 정보를 불러오는 데 실패했습니다.');
       setTransportData({ trains: [], buses: [] });
@@ -41,11 +68,11 @@ const TransportSelectModal = ({ visible, onClose, onSelect, mode, departure, arr
     }
   };
 
-  const renderTransportItem = (item, type) => (
+  const renderTransportItem = (item, type, index) => (
     <TouchableOpacity 
-      key={`${type}-${item.name}-${item.depTime}`}
+      key={`${type}-${item.name}-${item.depTime}-${index}`}
       style={styles.itemContainer} 
-      onPress={() => onSelect(`${type}|${item.depTime}|${item.arrTime}`)}
+      onPress={() => onSelect(`${item.name}|${item.depTime}|${item.arrTime}|${item.price}`)}
     >
       <Text style={styles.time}>{item.depTime} → {item.arrTime}</Text>
       <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
@@ -82,13 +109,13 @@ const TransportSelectModal = ({ visible, onClose, onSelect, mode, departure, arr
             {(filter === 'all' || filter === 'train') && (
               <View>
                 <Text style={styles.sectionTitle}>기차</Text>
-                {trains.length > 0 ? trains.map(item => renderTransportItem(item, '기차')) : <Text style={styles.emptyText}>운행 정보 없음</Text>}
+                {trains.length > 0 ? trains.map((item, index) => renderTransportItem(item, '기차', index)) : <Text style={styles.emptyText}>운행 정보 없음</Text>}
               </View>
             )}
             {(filter === 'all' || filter === 'bus') && (
               <View>
                 <Text style={styles.sectionTitle}>버스</Text>
-                {buses.length > 0 ? buses.map(item => renderTransportItem(item, '버스')) : <Text style={styles.emptyText}>운행 정보 없음</Text>}
+                {buses.length > 0 ? buses.map((item, index) => renderTransportItem(item, '버스', index)) : <Text style={styles.emptyText}>운행 정보 없음</Text>}
               </View>
             )}
             {isAllDataEmpty && (

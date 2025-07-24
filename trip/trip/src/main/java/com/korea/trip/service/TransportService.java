@@ -83,13 +83,13 @@ public class TransportService {
             .filter(bus -> bus.getDepPlandTime().length() >= 12 && bus.getArrPlandTime().length() >= 12)
             .filter(bus -> filterByDepartureTime(bus.getDepPlandTime(), departureTime))
             .sorted(Comparator.comparing(BusInfo::getDepPlandTime))
-            .map(bus -> String.format("%s | %s → %s | %d원 | %s → %s",
+            .map(bus -> String.format("%s | %s → %s | %s → %s | %d원",
                 bus.getGradeNm(),
                 bus.getDepPlaceNm(),
                 bus.getArrPlaceNm(),
-                bus.getCharge(),
                 bus.getDepPlandTime().substring(8, 12),
-                bus.getArrPlandTime().substring(8, 12)))
+                bus.getArrPlandTime().substring(8, 12),
+                bus.getCharge()))
             .toList();
 
         System.out.println("🚌 버스 필터링 결과: " + busList.size() + "개");

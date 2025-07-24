@@ -6,7 +6,7 @@ const BASE_URL = 'http://192.168.3.11:5000';
 
 const client = axios.create({
   baseURL: BASE_URL,
-  timeout: 60000, // 30초 타임아웃으로 증가
+  timeout: 180000, 
   headers: {
     'Content-Type': 'application/json',
   }

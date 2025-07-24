@@ -32,28 +32,68 @@ const PlannerSetupScreen = ({ route }) => {
 
   const [markedDates, setMarkedDates] = useState({});
 
+  // 🚀 [수정] 라우트 파라미터로 전달된 도착지를 받는 useEffect
   useEffect(() => {
     if (route.params?.destination) {
       setDestination(route.params.destination);
     }
   }, [route.params?.destination]);
 
-  const onDayPress = (day) => {
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(day.dateString);
-      setEndDate(null);
-      setMarkedDates({ [day.dateString]: { startingDay: true, color: '#007bff', textColor: 'white' } });
-    } else if (day.dateString >= startDate) {
-      const newEndDate = day.dateString;
-      setEndDate(newEndDate);
-      let newMarkedDates = {};
-      for (let d = dayjs(startDate); d.isBefore(dayjs(newEndDate).add(1, 'day')); d = d.add(1, 'day')) {
-        const dateStr = d.format('YYYY-MM-DD');
+  // startDate 또는 endDate가 변경될 때마다 markedDates를 다시 계산
+  useEffect(() => {
+    if (!startDate) {
+      setMarkedDates({});
+      return;
+    }
+
+    const newMarkedDates = {};
+    const start = dayjs(startDate);
+    
+    // 시작일만 선택된 경우
+    if (!endDate) {
+      newMarkedDates[startDate] = { startingDay: true, color: '#007bff', textColor: 'white' };
+      setMarkedDates(newMarkedDates);
+      return;
+    }
+
+    // 시작일과 종료일이 모두 선택된 경우
+    const end = dayjs(endDate);
+    let current = start;
+
+    while (current.isBefore(end) || current.isSame(end)) {
+      const dateStr = current.format('YYYY-MM-DD');
+      
+      if (dateStr === startDate && dateStr === endDate) {
+        // 하루짜리 여행
+        newMarkedDates[dateStr] = { startingDay: true, endingDay: true, color: '#007bff', textColor: 'white' };
+      } else if (dateStr === startDate) {
+        newMarkedDates[dateStr] = { startingDay: true, color: '#007bff', textColor: 'white' };
+      } else if (dateStr === endDate) {
+        newMarkedDates[dateStr] = { endingDay: true, color: '#007bff', textColor: 'white' };
+      } else {
         newMarkedDates[dateStr] = { color: '#50a0ff', textColor: 'white' };
       }
-      newMarkedDates[startDate] = { ...newMarkedDates[startDate], startingDay: true };
-      newMarkedDates[newEndDate] = { ...newMarkedDates[newEndDate], endingDay: true };
-      setMarkedDates(newMarkedDates);
+      current = current.add(1, 'day');
+    }
+    setMarkedDates(newMarkedDates);
+
+  }, [startDate, endDate]);
+
+
+  const onDayPress = (day) => {
+    const selectedDate = day.dateString;
+
+    if (!startDate || (startDate && endDate)) {
+      // 새로운 선택 시작
+      setStartDate(selectedDate);
+      setEndDate(null);
+    } else if (selectedDate < startDate) {
+      // 시작일보다 이전 날짜 선택 시, 새로운 선택 시작
+      setStartDate(selectedDate);
+      setEndDate(null);
+    } else {
+      // 종료일 선택
+      setEndDate(selectedDate);
     }
   };
 

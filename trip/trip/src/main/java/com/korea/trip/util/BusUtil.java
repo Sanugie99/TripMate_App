@@ -74,28 +74,58 @@ public class BusUtil {
     }
 
     private String extractCityFromTerminalName(String terminalNm) {
-        // 더 이상 KNOWN_CITIES를 사용하지 않고, 항상 '기타' 반환
+        if (terminalNm == null || terminalNm.isEmpty()) {
+            return "기타";
+        }
+        if (terminalNm.startsWith("서울")) return "서울";
+        if (terminalNm.startsWith("동서울")) return "서울";
+        if (terminalNm.startsWith("부산")) return "부산";
+        if (terminalNm.startsWith("대구")) return "대구";
+        if (terminalNm.startsWith("인천")) return "인천";
+        if (terminalNm.startsWith("광주")) return "광주";
+        if (terminalNm.startsWith("대전")) return "대전";
+        if (terminalNm.startsWith("울산")) return "울산";
+        if (terminalNm.startsWith("세종")) return "세종";
+        
+        // 그 외, 터미널 이름에서 첫 2~4글자를 도시명으로 간주 (일반적인 경우)
+        if (terminalNm.length() >= 2) {
+            // "성남", "수원", "용인" 등
+            return terminalNm.substring(0, 2);
+        }
+        
         return "기타";
     }
 
     // 도시명 기준으로 터미널 ID 리스트 가져오기
     public List<String> getTerminalIdsByCity(String cityName) {
+        System.out.println("--- 터미널 ID 검색 시작: " + cityName + " ---");
         List<String> ids = new ArrayList<>();
-        // key로 먼저 찾기
+
+        // 1. 도시명(key)으로 정확히 일치하는 터미널 목록 찾기
         if (cityTerminalMap.containsKey(cityName)) {
-            for (TerminalInfo t : cityTerminalMap.get(cityName)) {
+            System.out.println("✅ cityTerminalMap에서 '" + cityName + "' 키를 찾았습니다.");
+            List<TerminalInfo> terminals = cityTerminalMap.get(cityName);
+            for (TerminalInfo t : terminals) {
                 ids.add(t.getTerminalId());
             }
+            System.out.println(" -> 추가된 터미널 ID: " + terminals.stream().map(TerminalInfo::getTerminalId).collect(Collectors.toList()));
+        } else {
+            System.out.println("⚠️ cityTerminalMap에 '" + cityName + "' 키가 없습니다. 전체 터미널을 검색합니다.");
         }
-        // value(터미널명)에서도 찾기
+
+        // 2. (Fallback) 전체 터미널 이름에서 도시명을 포함하는 경우 추가로 찾기
         for (List<TerminalInfo> list : cityTerminalMap.values()) {
             for (TerminalInfo t : list) {
                 if (t.getTerminalName().contains(cityName) && !ids.contains(t.getTerminalId())) {
+                    System.out.println(" -> Fallback: 터미널명 '" + t.getTerminalName() + "'에 '" + cityName + "'이 포함되어 ID(" + t.getTerminalId() + ") 추가");
                     ids.add(t.getTerminalId());
                 }
             }
         }
-        return ids;
+
+        List<String> distinctIds = ids.stream().distinct().collect(Collectors.toList());
+        System.out.println("--- '" + cityName + "' 검색 완료. 찾은 터미널 ID 개수: " + distinctIds.size() + "개 ---");
+        return distinctIds;
     }
 
     // 단일 터미널 ID 기준 버스 정보 조회
@@ -108,9 +138,13 @@ public class BusUtil {
                 + "&depTerminalId=" + depTerminalId
                 + "&arrTerminalId=" + arrTerminalId
                 + "&depPlandTime=" + date;
+        
+        System.out.println("  [API 요청] URL: " + url);
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            System.out.println("  [API 응답] Body: " + response.getBody());
+
             ObjectMapper mapper = new ObjectMapper();
             JsonNode items = mapper.readTree(response.getBody())
                     .path("response").path("body").path("items").path("item");
@@ -128,7 +162,7 @@ public class BusUtil {
                     );
                     results.add(busInfo);
                 }
-            } else if (items.isObject()) {
+            } else if (items.isObject() && items.has("gradeNm")) { // 아이템이 하나일 때도 정상 처리
                 BusInfo busInfo = new BusInfo(
                         items.path("gradeNm").asText(),
                         items.path("routeId").asText(),

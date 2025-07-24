@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Alert, Button,
   TouchableOpacity, ScrollView, Modal, FlatList, TextInput
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // 🚀 [추가]
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -17,6 +18,7 @@ const addTempId = (place) => ({ ...place, tempId: Math.random().toString() });
 const ScheduleEditorScreen = ({ route, navigation }) => {
   const { plannerData, existingSchedule } = route.params;
   const isEditing = !!existingSchedule;
+  const insets = useSafeAreaInsets(); // 🚀 [추가] 안전 영역 insets 가져오기
 
   const [schedule, setSchedule] = useState({ dailyPlan: {} });
   const [scheduleTitle, setScheduleTitle] = useState('');
@@ -75,9 +77,14 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         for (const date in response.data.dailyPlan) {
           newDailyPlan[date] = response.data.dailyPlan[date].map(addTempId);
         }
+        
+        const sortedDates = Object.keys(newDailyPlan).sort();
+        
+        // 🚀 [수정] 상태 업데이트 순서를 명확히 하여 지도 갱신을 보장
         setSchedule({ ...response.data, dailyPlan: newDailyPlan });
-        const firstDate = Object.keys(response.data.dailyPlan)[0];
-        setSelectedDate(firstDate);
+        setDateTabs(sortedDates);
+        setSelectedDate(sortedDates[0]); // 가장 마지막에 업데이트하여 변경 감지를 유도
+
       }
     } catch (err) {
       Alert.alert('오류', '자동 일정 생성 중 오류가 발생했습니다.');
@@ -87,17 +94,31 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   };
 
   const handleRecommendPlaces = async () => {
-    const destination = isEditing ? schedule.arrival : plannerData.destination;
-    setRecommendLoading(true);
+    // 🚀 [최종 수정] 목적지 정보를 가장 안전하게 가져오고, 모든 예외 상황을 처리합니다.
+    const destination = isEditing ? schedule?.arrival : plannerData?.destination;
+    if (!destination) {
+      Alert.alert('알림', '추천 장소를 검색할 목적지를 찾을 수 없습니다.');
+      return;
+    }
+
     setRecommendModalVisible(true);
+    setRecommendLoading(true);
+    
     try {
       const response = await client.get('/api/schedule/places/recommend', {
         params: { keyword: destination }
       });
-      setRecommendedPlaces(response.data.map(addTempId));
+
+      if (Array.isArray(response.data)) {
+        setRecommendedPlaces(response.data.map(addTempId));
+      } else {
+        console.warn("API 응답이 배열이 아닙니다:", response.data);
+        setRecommendedPlaces([]);
+      }
     } catch (error) {
-      Alert.alert('오류', '추천 장소를 불러오는 데 실패했습니다.');
-      setRecommendModalVisible(false);
+      console.error("장소 추천 API 호출 중 오류 발생:", error);
+      Alert.alert('오류', '추천 장소를 불러오는 중 문제가 발생했습니다. 네트워크 상태를 확인해 주세요.');
+      setRecommendedPlaces([]); // 실패 시에도 모달은 닫지 않고, 목록만 비웁니다.
     } finally {
       setRecommendLoading(false);
     }
@@ -124,9 +145,10 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       Alert.alert('알림', '장소를 추가할 날짜를 먼저 선택해주세요.');
       return;
     }
+    // 🚀 [수정] 불변성을 지키기 위해 새로운 객체와 배열로 상태 업데이트
     setSchedule(prev => {
       const newDailyPlan = { ...prev.dailyPlan };
-      const currentPlaces = newDailyPlan[selectedDate] || [];
+      const currentPlaces = prev.dailyPlan[selectedDate] || [];
       newDailyPlan[selectedDate] = [...currentPlaces, addTempId(place)];
       return { ...prev, dailyPlan: newDailyPlan };
     });
@@ -192,16 +214,23 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   };
 
   const onDragEnd = ({ data }) => {
-    setSchedule(prev => ({
-      ...prev,
-      dailyPlan: { ...prev.dailyPlan, [selectedDate]: data }
-    }));
+    // 🚀 [수정] 불변성을 지키기 위해 새로운 객체로 상태 업데이트
+    setSchedule(prev => {
+      const newDailyPlan = { ...prev.dailyPlan };
+      newDailyPlan[selectedDate] = data;
+      return { ...prev, dailyPlan: newDailyPlan };
+    });
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <ScheduleMapComponent dailyPlan={schedule?.dailyPlan || {}} selectedDate={selectedDate} selectedPlace={setSelectedPlace} />
+        {/* 🚀 [수정] 항상 유효한 dailyPlan 객체를 전달하도록 보장 */}
+        <ScheduleMapComponent 
+          dailyPlan={schedule?.dailyPlan ?? {}} 
+          selectedDate={selectedDate} 
+          selectedPlace={setSelectedPlace} 
+        />
       </View>
 
       <View style={styles.contentContainer}>
@@ -235,69 +264,80 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
             <DraggableFlatList
               data={schedule.dailyPlan[selectedDate] || []}
               renderItem={({ item, drag, isActive }) => (
-                <TouchableOpacity onLongPress={drag} disabled={isActive} onPress={() => setSelectedPlace(item)}>
-                  <PlaceCard item={item} />
+                <TouchableOpacity onLongPress={drag} disabled={isActive}>
+                  {/* 🚀 [수정] onPlaceClick에 setSelectedPlace 함수를 전달 */}
+                  <PlaceCard item={item} onPlaceClick={setSelectedPlace} />
                 </TouchableOpacity>
               )}
               keyExtractor={(item) => item.tempId}
               onDragEnd={onDragEnd}
-              ListFooterComponent={<View style={{ padding: 10 }}><Button title="일정 저장하기" onPress={handleSaveSchedule} /></View>}
+              // 🚀 [수정] 시스템 네비게이션 바 높이만큼 하단 여백 추가
+              ListFooterComponent={<View style={{ paddingBottom: insets.bottom + 20 }}><Button title="일정 저장하기" onPress={handleSaveSchedule} /></View>}
               ListEmptyComponent={<Text style={styles.noDataText}>일정이 없습니다.</Text>}
             />
           )}
         </View>
       </View>
 
+      {/* 🚀 [수정] transparent 옵션과 modalOverlay를 다시 적용하여 카드 형태 유지 */}
       <Modal visible={isRecommendModalVisible} onRequestClose={() => setRecommendModalVisible(false)} transparent animationType="fade">
+        {/* The overlay now has its own dedicated View */}
         <View style={styles.modalOverlay}>
-          <SafeAreaView style={styles.modalContent}>
-            <Text style={styles.modalTitle}>추천 장소</Text>
-            <View style={styles.modalWrapper}>
-              {recommendLoading ? <ActivityIndicator size="large" /> : (
-                <FlatList
-                  data={recommendedPlaces}
-                  keyExtractor={(item) => item.tempId}
-                  renderItem={({ item }) => (
-                    <View style={styles.recommendItem}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.recommendName}>{item.name}</Text>
-                        <Text style={styles.recommendAddress}>{item.address}</Text>
+          {/* The card's shape and style are defined in this View */}
+          <View style={styles.modalContent}>
+            {/* SafeAreaView is now safely inside the card */}
+            <SafeAreaView style={styles.modalSafeArea}>
+              <Text style={styles.modalTitle}>추천 장소</Text>
+              <View style={styles.modalWrapper}>
+                {recommendLoading ? <ActivityIndicator size="large" /> : (
+                  <FlatList
+                    data={recommendedPlaces}
+                    keyExtractor={(item) => item.tempId}
+                    renderItem={({ item }) => (
+                      <View style={styles.recommendItem}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recommendName}>{item.name}</Text>
+                          <Text style={styles.recommendAddress}>{item.address}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.addButton} onPress={() => handleAddPlaceToSchedule(item)}>
+                          <Text style={styles.addButtonText}>추가</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity style={styles.addButton} onPress={() => handleAddPlaceToSchedule(item)}>
-                        <Text style={styles.addButtonText}>추가</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                />
-              )}
-            </View>
-            <Button title="닫기" onPress={() => setRecommendModalVisible(false)} />
-          </SafeAreaView>
+                    )}
+                  />
+                )}
+              </View>
+              <Button title="닫기" onPress={() => setRecommendModalVisible(false)} style={{length:60}} />
+            </SafeAreaView>
+          </View>
         </View>
       </Modal>
+      {/* 🚀 [수정] transparent 옵션과 modalOverlay를 다시 적용하여 카드 형태 유지 */}
       <Modal visible={isSearchModalVisible} onRequestClose={() => setSearchModalVisible(false)} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <SafeAreaView style={styles.modalContent}>
-            <Text style={styles.modalTitle}>위치 검색</Text>
-            <View style={styles.searchBar}>
-              <TextInput style={styles.searchInput} placeholder="장소, 주소 검색" value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={() => handleSearchPlaces(searchQuery)} />
-            </View>
-            <View style={styles.modalWrapper}>
-              {searchLoading ? <ActivityIndicator /> : (
-                <FlatList
-                  data={searchedPlaces}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.searchItem} onPress={() => handleAddSearchedPlace(item)}>
-                      <Text style={styles.recommendName}>{item.place_name}</Text>
-                      <Text style={styles.recommendAddress}>{item.address_name}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              )}
-            </View>
-            <Button title="닫기" onPress={() => setSearchModalVisible(false)} />
-          </SafeAreaView>
+          <View style={styles.modalContent}>
+            <SafeAreaView style={styles.modalSafeArea}>
+              <Text style={styles.modalTitle}>위치 검색</Text>
+              <View style={styles.searchBar}>
+                <TextInput style={styles.searchInput} placeholder="장소, 주소 검색" value={searchQuery} onChangeText={setSearchQuery} onSubmitEditing={() => handleSearchPlaces(searchQuery)} />
+              </View>
+              <View style={styles.modalWrapper}>
+                {searchLoading ? <ActivityIndicator /> : (
+                  <FlatList
+                    data={searchedPlaces}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={styles.searchItem} onPress={() => handleAddSearchedPlace(item)}>
+                        <Text style={styles.recommendName}>{item.place_name}</Text>
+                        <Text style={styles.recommendAddress}>{item.address_name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+              </View>
+              <Button title="닫기" onPress={() => setSearchModalVisible(false)} style={{length:40}} />
+            </SafeAreaView>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -319,10 +359,11 @@ const styles = StyleSheet.create({
   activeTabText: { color: 'white' },
   noDataText: { textAlign: 'center', marginTop: 40, color: '#6c757d', fontSize: 16 },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { width: '90%', height: '70%', backgroundColor: 'white', borderRadius: 15, padding: 20 },
-  modalWrapper: { flex: 1 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  recommendItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  modalContent: { width: '90%', height: '70%', backgroundColor: 'white', borderRadius: 15, overflow: 'hidden' },
+  modalSafeArea: { flex: 1, alignItems: 'center' },
+  modalWrapper: { flex: 1, width: '100%', marginTop: 10 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
+  recommendItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', width: '100%' },
   recommendName: { fontSize: 16, fontWeight: 'bold' },
   recommendAddress: { fontSize: 12, color: '#666' },
   addButton: { backgroundColor: '#28a745', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
