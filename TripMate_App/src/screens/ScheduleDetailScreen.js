@@ -312,7 +312,11 @@ const ScheduleDetailScreen = ({ route }) => {
             </View>
             <Text style={styles.authorText}>작성자: {schedule.username || '알 수 없음'}</Text>
             <Text style={styles.dateRange}>
-              {dayjs(schedule.startDate).format('YYYY.MM.DD')} - {dayjs(schedule.endDate).format('YYYY.MM.DD')}
+              {schedule.startDate && schedule.startDate.trim() !== '' && dayjs(schedule.startDate).isValid() 
+                ? dayjs(schedule.startDate).format('YYYY.MM.DD') 
+                : '날짜 없음'} - {schedule.endDate && schedule.endDate.trim() !== '' && dayjs(schedule.endDate).isValid() 
+                ? dayjs(schedule.endDate).format('YYYY.MM.DD') 
+                : '날짜 없음'}
             </Text>
             <View style={styles.metaContainer}>
               <View style={styles.likeContainer}>

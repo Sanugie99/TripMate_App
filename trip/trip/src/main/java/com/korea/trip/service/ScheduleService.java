@@ -140,6 +140,8 @@ public class ScheduleService {
 				newPlace.setLat(placeDto.getLat());
 				newPlace.setLng(placeDto.getLng());
 				newPlace.setDate(placeDto.getDate()); // Set the date for each place
+				newPlace.setCategory(placeDto.getCategory()); // 카테고리 설정
+				newPlace.setImageUrl(placeDto.getPhotoUrl()); // 이미지 URL 설정
 				newPlace.setSchedule(schedule);
 				schedule.getPlaces().add(newPlace);
 			}
