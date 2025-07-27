@@ -44,7 +44,14 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         dailyPlanWithTempIds[date] = existingSchedule.dailyPlan[date].map(addTempId);
       }
       setSchedule({ ...existingSchedule, dailyPlan: dailyPlanWithTempIds });
-      setScheduleTitle(existingSchedule.title);
+      
+      // 기존 일정의 경우 출발지와 도착지 정보를 사용해서 제목 설정
+      if (existingSchedule.departure && existingSchedule.arrival) {
+        setScheduleTitle(`${existingSchedule.departure} → ${existingSchedule.arrival} 여행`);
+      } else {
+        setScheduleTitle(existingSchedule.title);
+      }
+      
       const sortedDates = Object.keys(existingSchedule.dailyPlan).sort();
       setDateTabs(sortedDates);
       setSelectedDate(sortedDates[0]);
@@ -58,7 +65,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         dates.push(date);
       }
       setSchedule({ dailyPlan });
-      setScheduleTitle(`${plannerData.destination} 여행`);
+      setScheduleTitle(`${plannerData.departure} → ${plannerData.destination} 여행`);
       setDateTabs(dates);
       setSelectedDate(plannerData.startDate);
     }
@@ -204,6 +211,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       lat: parseFloat(place.y),
       lng: parseFloat(place.x),
       category: place.category_group_name,
+      photoUrl: place.place_url,
     };
     handleAddPlaceToSchedule(newPlace);
     setSearchModalVisible(false);
@@ -251,6 +259,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       }
       navigation.navigate('MySchedules');
     } catch (error) {
+      console.error('Schedule save error:', error);
       Alert.alert('오류', '저장에 실패했습니다.');
     }
   };
@@ -348,7 +357,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
                              item={item} 
                              onPlaceClick={setSelectedPlace}
                              onDelete={handleDeletePlace}
-                             showDeleteButton={isEditing}
+                             showDeleteButton={true}
                            />
                          </TouchableOpacity>
                        )}

@@ -41,7 +41,8 @@ public class KakaoPlaceUtil {
                 place.setCategoryCode(doc.get("category_group_code").asText());
                 place.setLat(Double.parseDouble(doc.get("y").asText()));
                 place.setLng(Double.parseDouble(doc.get("x").asText()));
-                place.setPhotoUrl(searchPlaceImage(place.getName()));
+                String imageUrl = searchPlaceImage(place.getName());
+                place.setPhotoUrl(imageUrl);
                 result.add(place);
             }
         } catch (Exception e) {
@@ -96,7 +97,8 @@ public class KakaoPlaceUtil {
                     place.setLat(Double.parseDouble(doc.get("y").asText()));
                     place.setLng(Double.parseDouble(doc.get("x").asText()));
                     place.setCategoryCode(category);
-                    place.setPhotoUrl(searchPlaceImage(place.getName()));
+                    String imageUrl = searchPlaceImage(place.getName());
+                    place.setPhotoUrl(imageUrl);
 
                     result.add(place);
                 }

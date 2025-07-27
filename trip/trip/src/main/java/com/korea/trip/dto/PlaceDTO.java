@@ -29,7 +29,7 @@ public class PlaceDTO {
                 .date(place.getDate())
                 .category(place.getCategory())
                 .categoryCode(place.getCategory()) // Assuming categoryCode in DTO maps to category in Entity
-                .photoUrl(place.getImageUrl() != null ? place.getImageUrl() : "https://picsum.photos/150/150")
+                .photoUrl(place.getImageUrl())
                 .build();
     }
 }

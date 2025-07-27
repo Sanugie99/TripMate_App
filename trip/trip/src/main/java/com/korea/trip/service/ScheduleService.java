@@ -217,6 +217,16 @@ public class ScheduleService {
 
 	public ScheduleDTO createSchedule(ScheduleCreateRequest request, Long userId) {
 		 System.out.println("Request received: " + request);
+        System.out.println("User ID: " + userId);
+        System.out.println("Departure: " + request.getDeparture());
+        System.out.println("Arrival: " + request.getArrival());
+        System.out.println("Date: " + request.getDate());
+        System.out.println("Days: " + request.getDays());
+        System.out.println("Transport Type: " + request.getTransportType());
+        System.out.println("Start Time: " + request.getStartTime());
+        System.out.println("End Time: " + request.getEndTime());
+        System.out.println("Places count: " + (request.getPlaces() != null ? request.getPlaces().size() : 0));
+        
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
@@ -255,6 +265,7 @@ public class ScheduleService {
                     place.setLat(dto.getLat());
                     place.setLng(dto.getLng());
                     place.setDate(dto.getDate());
+                    place.setImageUrl(dto.getPhotoUrl());
                     place.setSchedule(schedule); // 연관관계 설정
                     return place;
                 })

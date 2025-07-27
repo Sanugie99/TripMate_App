@@ -57,8 +57,8 @@ const HomeScreen = () => {
   const handleCreateSchedule = () => {
     if (!selectedCity) return;
     setModalVisible(false);
-    // Navigate to PlannerSetup with the destination parameter
-    navigation.navigate('PlannerSetup', { destination: selectedCity.name });
+    // Navigate to new step-by-step flow
+    navigation.navigate('Step1Destination', { destination: selectedCity.name });
   };
 
   const renderCity = ({ item }) => (
