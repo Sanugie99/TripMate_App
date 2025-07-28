@@ -137,7 +137,23 @@ public class KorailUtil {
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            JsonNode items = mapper.readTree(response.getBody())
+            String responseBody = response.getBody();
+            
+            // API 호출 한도 초과 오류 체크
+            if (responseBody != null && responseBody.contains("LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR")) {
+                System.err.println("⚠️ 코레일 API 호출 한도 초과: " + depStationId + " → " + arrStationId);
+                results.add(new KorailInfo("API 호출 한도 초과", "", "", "", "", "", 0));
+                return results;
+            }
+            
+            // XML 오류 응답 체크
+            if (responseBody != null && responseBody.contains("<OpenAPI_ServiceResponse>")) {
+                System.err.println("⚠️ 코레일 API 오류 응답 (XML): " + depStationId + " → " + arrStationId);
+                results.add(new KorailInfo("API 서비스 오류", "", "", "", "", "", 0));
+                return results;
+            }
+            
+            JsonNode items = mapper.readTree(responseBody)
                                    .path("response").path("body").path("items").path("item");
 
             if (items.isArray()) {
@@ -166,6 +182,8 @@ public class KorailUtil {
             }
         } catch (Exception e) {
             System.err.println("🛑 열차 조회 실패: " + e.getMessage());
+            // 오류 발생 시에도 빈 결과 대신 오류 메시지 포함
+            results.add(new KorailInfo("열차 정보 조회 실패", "", "", "", "", "", 0));
         }
 
         return results;

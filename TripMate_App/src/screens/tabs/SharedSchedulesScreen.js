@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    paddingTop: 40, // 상단 여백 추가
     backgroundColor: '#fff',
   },
   title: {

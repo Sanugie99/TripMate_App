@@ -211,7 +211,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       lat: parseFloat(place.y),
       lng: parseFloat(place.x),
       category: place.category_group_name,
-      photoUrl: place.place_url,
+      photoUrl: place.place_url ? place.place_url.substring(0, 3000) : '', // URL 길이 제한
     };
     handleAddPlaceToSchedule(newPlace);
     setSearchModalVisible(false);
@@ -235,6 +235,8 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         requestBody.id = schedule.id;
         requestBody.departure = schedule.departure;
         requestBody.arrival = schedule.arrival;
+        requestBody.startDate = schedule.startDate;  // 시작일 추가
+        requestBody.endDate = schedule.endDate;      // 종료일 추가
         requestBody.date = schedule.startDate;
         requestBody.days = schedule.days;
         requestBody.startTime = schedule.startTime;
