@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/tabs/HomeScreen';
 import MySchedulesScreen from '../screens/tabs/MySchedulesScreen';
-import PlannerSetupScreen from '../screens/PlannerSetupScreen'; // Import new screen
+import Step1DestinationScreen from '../screens/Step1DestinationScreen'; // Import new step screen
 import SharedSchedulesScreen from '../screens/tabs/SharedSchedulesScreen';
 import MyProfileScreen from '../screens/tabs/MyProfileScreen';
 
@@ -23,7 +23,7 @@ const MainTabNavigator = () => {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'MySchedules') {
             iconName = focused ? 'calendar' : 'calendar-outline';
-          } else if (route.name === 'PlannerSetup') {
+          } else if (route.name === 'CreateSchedule') {
             iconName = focused ? 'add-circle' : 'add-circle-outline';
           } else if (route.name === 'SharedSchedules') {
             iconName = focused ? 'share-social' : 'share-social-outline';
@@ -39,7 +39,7 @@ const MainTabNavigator = () => {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: '홈' }} />
       <Tab.Screen name="MySchedules" component={MySchedulesScreen} options={{ title: '내 일정' }} />
-      <Tab.Screen name="PlannerSetup" component={PlannerSetupScreen} options={{ title: '일정 생성' }} />
+      <Tab.Screen name="CreateSchedule" component={Step1DestinationScreen} options={{ title: '일정 생성' }} />
       <Tab.Screen name="SharedSchedules" component={SharedSchedulesScreen} options={{ title: '공유 일정' }} />
       <Tab.Screen name="MyProfile" component={MyProfileScreen} options={{ title: '내 정보' }} />
     </Tab.Navigator>

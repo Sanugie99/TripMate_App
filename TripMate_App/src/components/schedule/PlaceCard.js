@@ -2,20 +2,46 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 
-const PlaceCard = ({ item, onPlaceClick }) => {
+const PlaceCard = ({ item, onPlaceClick, onDelete, showDeleteButton = false }) => {
+  
+  const getImageUrl = () => {
+    if (item.photoUrl) {
+      return item.photoUrl;
+    }
+    if (item.imageUrl) {
+      return item.imageUrl;
+    }
+    return 'https://picsum.photos/150/150';
+  };
+
+  const handleImageError = () => {
+    console.log('Image failed to load for item:', item.name);
+  };
+
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPlaceClick(item)}>
-      <Image
-        style={styles.placeImage}
-        source={{ uri: item.photoUrl || 'https://via.placeholder.com/150' }}
-        onError={(e) => e.target.source = { uri: 'https://via.placeholder.com/150' }}
-      />
-      <View style={styles.cardContent}>
-        <Text style={styles.placeName}>{item.name}</Text>
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.address} numberOfLines={2}>{item.address}</Text>
-      </View>
-    </TouchableOpacity>
+    <View style={styles.card}>
+      <TouchableOpacity style={styles.cardTouchable} onPress={() => onPlaceClick(item)}>
+        <Image
+          style={styles.placeImage}
+          source={{ uri: getImageUrl() }}
+          onError={handleImageError}
+        />
+        <View style={styles.cardContent}>
+          <Text style={styles.placeName}>{item.name}</Text>
+          <Text style={styles.category}>{item.category}</Text>
+          <Text style={styles.address} numberOfLines={2}>{item.address}</Text>
+        </View>
+      </TouchableOpacity>
+      
+      {showDeleteButton && (
+        <TouchableOpacity 
+          style={styles.deleteButton} 
+          onPress={() => onDelete && onDelete(item)}
+        >
+          <Text style={styles.deleteButtonText}>×</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
@@ -32,6 +58,11 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
     height: 110,
+    position: 'relative',
+  },
+  cardTouchable: {
+    flexDirection: 'row',
+    flex: 1,
   },
   placeImage: {
     width: 100,
@@ -58,6 +89,28 @@ const styles = StyleSheet.create({
   address: {
     fontSize: 12,
     color: '#888',
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#dc3545',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    lineHeight: 20,
   },
 });
 

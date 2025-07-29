@@ -11,11 +11,15 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import FindIdScreen from './src/screens/FindIdScreen';
 import FindPasswordScreen from './src/screens/FindPasswordScreen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
-import PlannerSetupScreen from './src/screens/PlannerSetupScreen';
+
 import ScheduleEditorScreen from './src/screens/ScheduleEditorScreen';
 import ScheduleDetailScreen from './src/screens/ScheduleDetailScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import MySchedulesScreen from './src/screens/tabs/MySchedulesScreen';
+import Step1DestinationScreen from './src/screens/Step1DestinationScreen';
+import Step2DateSelectScreen from './src/screens/Step2DateSelectScreen';
+import Step3TimeSelectScreen from './src/screens/Step3TimeSelectScreen';
+import Step4TransportSelectScreen from './src/screens/Step4TransportSelectScreen';
 
 const Stack = createStackNavigator();
 
@@ -26,7 +30,11 @@ const AppNavigator = () => {
       {user ? (
         <>
           <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }}/>
-          <Stack.Screen name="PlannerSetup" component={PlannerSetupScreen} options={{ title: '여행 준비' }}/>
+
+          <Stack.Screen name="Step1Destination" component={Step1DestinationScreen} options={{ title: '여행 계획 시작하기' }}/>
+          <Stack.Screen name="Step2DateSelect" component={Step2DateSelectScreen} options={{ title: '날짜 선택' }}/>
+          <Stack.Screen name="Step3TimeSelect" component={Step3TimeSelectScreen} options={{ title: '시간 선택' }}/>
+          <Stack.Screen name="Step4TransportSelect" component={Step4TransportSelectScreen} options={{ title: '교통편 선택' }}/>
           <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} options={{ title: '일정 만들기' }}/>
           <Stack.Screen name="ScheduleDetail" component={ScheduleDetailScreen} options={{ title: '일정 상세' }}/>
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: '프로필 수정' }}/>

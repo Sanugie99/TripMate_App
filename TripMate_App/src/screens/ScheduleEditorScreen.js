@@ -44,7 +44,14 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         dailyPlanWithTempIds[date] = existingSchedule.dailyPlan[date].map(addTempId);
       }
       setSchedule({ ...existingSchedule, dailyPlan: dailyPlanWithTempIds });
-      setScheduleTitle(existingSchedule.title);
+      
+      // 기존 일정의 경우 출발지와 도착지 정보를 사용해서 제목 설정
+      if (existingSchedule.departure && existingSchedule.arrival) {
+        setScheduleTitle(`${existingSchedule.departure} → ${existingSchedule.arrival} 여행`);
+      } else {
+        setScheduleTitle(existingSchedule.title);
+      }
+      
       const sortedDates = Object.keys(existingSchedule.dailyPlan).sort();
       setDateTabs(sortedDates);
       setSelectedDate(sortedDates[0]);
@@ -58,7 +65,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         dates.push(date);
       }
       setSchedule({ dailyPlan });
-      setScheduleTitle(`${plannerData.destination} 여행`);
+      setScheduleTitle(`${plannerData.departure} → ${plannerData.destination} 여행`);
       setDateTabs(dates);
       setSelectedDate(plannerData.startDate);
     }
@@ -169,6 +176,34 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
     Alert.alert('성공', `${place.name}을(를) ${selectedDate} 일정에 추가했습니다.`);
   };
 
+  const handleDeletePlace = (placeToDelete) => {
+    Alert.alert(
+      '장소 삭제',
+      `${placeToDelete.name}을(를) 일정에서 삭제하시겠습니까?`,
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            setSchedule(prev => {
+              const newDailyPlan = { ...prev.dailyPlan };
+              const currentPlaces = prev.dailyPlan[selectedDate] || [];
+              newDailyPlan[selectedDate] = currentPlaces.filter(
+                place => place.tempId !== placeToDelete.tempId
+              );
+              return { ...prev, dailyPlan: newDailyPlan };
+            });
+            Alert.alert('삭제 완료', `${placeToDelete.name}이(가) 일정에서 삭제되었습니다.`);
+          },
+        },
+      ]
+    );
+  };
+
   const handleAddSearchedPlace = (place) => {
     const newPlace = {
       name: place.place_name,
@@ -176,6 +211,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       lat: parseFloat(place.y),
       lng: parseFloat(place.x),
       category: place.category_group_name,
+      photoUrl: place.place_url ? place.place_url.substring(0, 3000) : '', // URL 길이 제한
     };
     handleAddPlaceToSchedule(newPlace);
     setSearchModalVisible(false);
@@ -199,6 +235,8 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
         requestBody.id = schedule.id;
         requestBody.departure = schedule.departure;
         requestBody.arrival = schedule.arrival;
+        requestBody.startDate = schedule.startDate;  // 시작일 추가
+        requestBody.endDate = schedule.endDate;      // 종료일 추가
         requestBody.date = schedule.startDate;
         requestBody.days = schedule.days;
         requestBody.startTime = schedule.startTime;
@@ -223,6 +261,7 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
       }
       navigation.navigate('MySchedules');
     } catch (error) {
+      console.error('Schedule save error:', error);
       Alert.alert('오류', '저장에 실패했습니다.');
     }
   };
@@ -239,60 +278,111 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
   return (
     <>
       <SafeAreaView style={styles.container}>
-      <View style={styles.mapContainer}>
-        {/* 🚀 [수정] 항상 유효한 dailyPlan 객체를 전달하도록 보장 */}
-        <ScheduleMapComponent 
-          dailyPlan={schedule?.dailyPlan ?? {}} 
-          selectedDate={selectedDate} 
-          selectedPlace={selectedPlace} 
-        />
-      </View>
-
-      <View style={styles.contentContainer}>
-        <View style={styles.controlsContainer}>
-          <TextInput style={styles.titleInput} value={scheduleTitle} onChangeText={setScheduleTitle} />
-          <Text style={styles.dates}>
-            {isEditing
-              ? `${dayjs(schedule.startDate).format('YYYY.MM.DD')} ~ ${dayjs(schedule.endDate).format('YYYY.MM.DD')}`
-              : `${plannerData.startDate} ~ ${plannerData.endDate}`
-            }
-          </Text>
-          <View style={styles.buttonRow}>
-            <Button title="자동 일정 생성" onPress={handleGenerateSchedule} disabled={isEditing} />
-            <Button title="장소 추천" onPress={handleRecommendPlaces} />
-            <Button title="위치 추가" onPress={() => setSearchModalVisible(true)} />
-          </View>
-        </View>
-        
-        <View style={{ height: 55 }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContainer}>
-            {dateTabs.map(date => (
-              <TouchableOpacity key={date} style={[styles.tabButton, selectedDate === date && styles.activeTab]} onPress={() => setSelectedDate(date)}>
-                <Text style={[styles.tabText, selectedDate === date && styles.activeTabText]}>{date.substring(5)}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        {/* 고정된 지도 영역 */}
+        <View style={styles.mapContainer}>
+          <ScheduleMapComponent 
+            dailyPlan={schedule?.dailyPlan ?? {}} 
+            selectedDate={selectedDate} 
+            selectedPlace={selectedPlace} 
+          />
         </View>
 
-        <View style={{ flex: 1 }}>
-          {loading ? <ActivityIndicator size="large" style={{ flex: 1 }} /> : (
-            <DraggableFlatList
-              data={schedule.dailyPlan[selectedDate] || []}
-              renderItem={({ item, drag, isActive }) => (
-                <TouchableOpacity onLongPress={drag} disabled={isActive}>
-                  {/* 🚀 [수정] onPlaceClick에 setSelectedPlace 함수를 전달 */}
-                  <PlaceCard item={item} onPlaceClick={setSelectedPlace} />
+                 {/* 스크롤 가능한 컨텐츠 영역 */}
+         <ScrollView 
+           style={styles.scrollContainer}
+           contentContainerStyle={styles.scrollContent}
+           showsVerticalScrollIndicator={false}
+         >
+                       <View style={styles.contentContainer}>
+              <View style={styles.controlsContainer}>
+               <TextInput style={styles.titleInput} value={scheduleTitle} onChangeText={setScheduleTitle} />
+              <Text style={styles.dates}>
+                {isEditing
+                  ? `${dayjs(schedule.startDate).format('YYYY.MM.DD')} ~ ${dayjs(schedule.endDate).format('YYYY.MM.DD')}`
+                  : plannerData && plannerData.startDate && plannerData.endDate
+                    ? `${plannerData.startDate} ~ ${plannerData.endDate}`
+                    : '날짜를 선택해주세요'
+                }
+              </Text>
+              
+              {/* 개선된 버튼 디자인 */}
+              <View style={styles.buttonRow}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, isEditing && styles.disabledButton]} 
+                  onPress={handleGenerateSchedule} 
+                  disabled={isEditing}
+                >
+                  <Text style={[styles.actionButtonText, isEditing && styles.disabledButtonText]}>
+                    자동 일정 생성
+                  </Text>
                 </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.actionButton} onPress={handleRecommendPlaces}>
+                  <Text style={styles.actionButtonText}>장소 추천</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.actionButton} onPress={() => setSearchModalVisible(true)}>
+                  <Text style={styles.actionButtonText}>위치 추가</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* 날짜 탭 */}
+            <View style={styles.tabsContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScrollContent}>
+                {dateTabs.map(date => (
+                  <TouchableOpacity 
+                    key={date} 
+                    style={[styles.tabButton, selectedDate === date && styles.activeTab]} 
+                    onPress={() => setSelectedDate(date)}
+                  >
+                    <Text style={[styles.tabText, selectedDate === date && styles.activeTabText]}>
+                      {date.substring(5)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* 장소 목록 */}
+            <View style={styles.placesContainer}>
+              {loading ? (
+                <ActivityIndicator size="large" style={styles.loadingIndicator} />
+              ) : (
+                <>
+                  {schedule.dailyPlan[selectedDate] && schedule.dailyPlan[selectedDate].length > 0 ? (
+                                         <DraggableFlatList
+                       data={schedule.dailyPlan[selectedDate]}
+                       renderItem={({ item, drag, isActive }) => (
+                         <TouchableOpacity onLongPress={drag} disabled={isActive}>
+                           <PlaceCard 
+                             item={item} 
+                             onPlaceClick={setSelectedPlace}
+                             onDelete={handleDeletePlace}
+                             showDeleteButton={true}
+                           />
+                         </TouchableOpacity>
+                       )}
+                       keyExtractor={(item) => item.tempId}
+                       onDragEnd={onDragEnd}
+                       scrollEnabled={false}
+                     />
+                  ) : (
+                    <Text style={styles.noDataText}>일정이 없습니다.</Text>
+                  )}
+                </>
               )}
-              keyExtractor={(item) => item.tempId}
-              onDragEnd={onDragEnd}
-              // 🚀 [수정] 시스템 네비게이션 바 높이만큼 하단 여백 추가
-              ListFooterComponent={<View style={{ paddingBottom: insets.bottom + 20 }}><Button title="일정 저장하기" onPress={handleSaveSchedule} /></View>}
-              ListEmptyComponent={<Text style={styles.noDataText}>일정이 없습니다.</Text>}
-            />
-          )}
-        </View>
-      </View>
+            </View>
+            
+            {/* 저장 버튼 */}
+            <View style={styles.saveButtonContainer}>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveSchedule}>
+                <Text style={styles.saveButtonText}>일정 저장하기</Text>
+              </TouchableOpacity>
+            </View>
+            
+          </View>
+        </ScrollView>
 
       {/* 추천 장소 모달 */}
       {isRecommendModalVisible && (
@@ -322,7 +412,9 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
                   />
                 )}
               </View>
-              <Button title="닫기" onPress={() => setRecommendModalVisible(false)} style={{length:60}} />
+                             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setRecommendModalVisible(false)}>
+                 <Text style={styles.modalCloseButtonText}>닫기</Text>
+               </TouchableOpacity>
             </SafeAreaView>
           </View>
         </View>
@@ -350,7 +442,9 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
                   />
                 )}
               </View>
-              <Button title="닫기" onPress={() => setSearchModalVisible(false)} style={{length:40}} />
+                             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setSearchModalVisible(false)}>
+                 <Text style={styles.modalCloseButtonText}>닫기</Text>
+               </TouchableOpacity>
             </SafeAreaView>
           </View>
         </View>
@@ -363,17 +457,144 @@ const ScheduleEditorScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   mapContainer: { height: '40%', backgroundColor: '#e9ecef' },
-  contentContainer: { flex: 1, backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, marginTop: -20, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 5 },
-  controlsContainer: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  titleInput: { fontSize: 22, fontWeight: 'bold', padding: 5 },
-  dates: { fontSize: 16, color: '#666', marginTop: 4, paddingLeft: 5 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },
-  tabsContainer: { paddingVertical: 10, paddingHorizontal: 10 },
-  tabButton: { paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#eee', borderRadius: 20, marginRight: 10 },
-  activeTab: { backgroundColor: '#007BFF' },
-  tabText: { color: '#333', fontWeight: '600', fontSize: 14 },
-  activeTabText: { color: 'white' },
-  noDataText: { textAlign: 'center', marginTop: 40, color: '#6c757d', fontSize: 16 },
+  scrollContainer: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+     contentContainer: { 
+     backgroundColor: 'white', 
+     borderTopLeftRadius: 35, 
+     borderTopRightRadius: 35, 
+     marginTop: -20, 
+     shadowColor: '#000', 
+     shadowOffset: { width: 0, height: -4 }, 
+     shadowOpacity: 0.15, 
+     shadowRadius: 8, 
+     elevation: 8,
+     minHeight: '100%'
+   },
+   
+   controlsContainer: { 
+     padding: 20, 
+     borderBottomWidth: 1, 
+     borderBottomColor: '#f0f0f0' 
+   },
+  titleInput: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    padding: 15,
+    color: '#333',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef'
+  },
+  dates: { 
+    fontSize: 16, 
+    color: '#666', 
+    marginBottom: 20, 
+    paddingLeft: 5,
+    fontWeight: '500'
+  },
+  buttonRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    gap: 10
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#007BFF',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#007BFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 13
+  },
+  disabledButton: {
+    backgroundColor: '#e9ecef',
+    shadowColor: '#e9ecef'
+  },
+  disabledButtonText: {
+    color: '#6c757d'
+  },
+  tabsContainer: { 
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0'
+  },
+  tabsScrollContent: { 
+    paddingHorizontal: 20 
+  },
+  tabButton: { 
+    paddingVertical: 8, 
+    paddingHorizontal: 18, 
+    backgroundColor: '#f8f9fa', 
+    borderRadius: 18, 
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  activeTab: { 
+    backgroundColor: '#007BFF',
+    borderColor: '#007BFF'
+  },
+  tabText: { 
+    color: '#666', 
+    fontWeight: '600', 
+    fontSize: 13 
+  },
+  activeTabText: { 
+    color: 'white' 
+  },
+         placesContainer: { 
+      paddingVertical: 15,
+      flex: 1
+    },
+    loadingIndicator: { 
+      marginTop: 40 
+    },
+    saveButtonContainer: { 
+      padding: 20, 
+      paddingBottom: 40,
+      borderTopWidth: 1,
+      borderTopColor: '#f0f0f0'
+    },
+    saveButton: {
+      backgroundColor: '#28a745',
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      borderRadius: 16,
+      alignItems: 'center',
+      shadowColor: '#28a745',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 4
+    },
+    saveButtonText: {
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: 15
+    },
+  noDataText: { 
+    textAlign: 'center', 
+    marginTop: 40, 
+    color: '#6c757d', 
+    fontSize: 16 
+  },
   modalOverlay: { 
     flex: 1, 
     justifyContent: 'center', 
@@ -391,22 +612,102 @@ const styles = StyleSheet.create({
     width: '90%', 
     height: '70%', 
     backgroundColor: 'white', 
-    borderRadius: 15, 
+    borderRadius: 25, 
     overflow: 'hidden',
     zIndex: 10000,
-    elevation: 10000
+    elevation: 10000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.35,
+    shadowRadius: 25
   },
   modalSafeArea: { flex: 1, alignItems: 'center' },
   modalWrapper: { flex: 1, width: '100%', marginTop: 10 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
-  recommendItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', width: '100%' },
-  recommendName: { fontSize: 16, fontWeight: 'bold' },
-  recommendAddress: { fontSize: 12, color: '#666' },
-  addButton: { backgroundColor: '#28a745', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  addButtonText: { color: 'white', fontWeight: 'bold' },
-  searchBar: { padding: 10 },
-  searchInput: { height: 40, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 10 },
-  searchItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  modalTitle: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginTop: 20, 
+    marginBottom: 20,
+    color: '#333'
+  },
+  recommendItem: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 20, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f0f0f0', 
+    width: '100%' 
+  },
+  recommendName: { 
+    fontSize: 16, 
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4
+  },
+  recommendAddress: { 
+    fontSize: 12, 
+    color: '#666',
+    maxWidth: '70%'
+  },
+  addButton: { 
+    backgroundColor: '#28a745', 
+    paddingHorizontal: 18, 
+    paddingVertical: 10, 
+    borderRadius: 15,
+    shadowColor: '#28a745',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  addButtonText: { 
+    color: 'white', 
+    fontWeight: 'bold',
+    fontSize: 13
+  },
+  modalCloseButton: {
+    backgroundColor: '#6c757d',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 18,
+    marginTop: 15,
+    marginBottom: 20,
+    shadowColor: '#6c757d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  modalCloseButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 15
+  },
+  searchBar: { 
+    padding: 20,
+    width: '100%'
+  },
+  searchInput: { 
+    height: 55, 
+    borderWidth: 2, 
+    borderColor: '#e9ecef', 
+    borderRadius: 28, 
+    paddingHorizontal: 25,
+    fontSize: 16,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  searchItem: { 
+    padding: 20, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff'
+  },
 });
 
 export default ScheduleEditorScreen;

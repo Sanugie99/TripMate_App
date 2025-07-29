@@ -38,6 +38,8 @@ public class Place {
 	
 	private String address;
 	private String phone;
+	
+	@Column(length = 8000)
 	private String imageUrl;
 	
 	@ManyToOne(fetch = FetchType.LAZY)

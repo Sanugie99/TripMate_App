@@ -88,7 +88,7 @@ const MySchedulesScreen = () => {
           <Text style={styles.emptyText}>아직 생성된 일정이 없습니다.</Text>
           <PrimaryButton
             title="새 일정 만들기"
-            onPress={() => navigation.navigate('PlannerSetup')}
+            onPress={() => navigation.navigate('Step1Destination')}
           />
         </View>
       )}

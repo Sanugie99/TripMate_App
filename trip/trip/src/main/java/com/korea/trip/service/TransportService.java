@@ -14,6 +14,8 @@ import com.korea.trip.dto.BusInfo;
 import com.korea.trip.dto.KorailInfo;
 import com.korea.trip.dto.TransportRequest;
 import com.korea.trip.dto.TransportResult;
+import com.korea.trip.dto.TransportOption;
+import com.korea.trip.dto.TransportPageResponse;
 import com.korea.trip.dto.TerminalInfo;
 import com.korea.trip.util.BusUtil;
 import com.korea.trip.util.KorailUtil;
@@ -136,9 +138,82 @@ public class TransportService {
         return result;
     }
 
+    public TransportPageResponse recommendTransportWithPagination(TransportRequest request, int page, int size) {
+        TransportResult result = recommendTransport(request);
+        
+        List<TransportOption> allOptions = new ArrayList<>();
+        
+        // 기차 옵션 변환
+        for (int i = 0; i < result.getKorailOptions().size(); i++) {
+            String option = result.getKorailOptions().get(i);
+            if (!option.contains("해당 날짜에")) {
+                allOptions.add(parseTransportOption(option, "기차", (long) (i + 1)));
+            }
+        }
+        
+        // 버스 옵션 변환
+        for (int i = 0; i < result.getBusOptions().size(); i++) {
+            String option = result.getBusOptions().get(i);
+            if (!option.contains("해당 날짜에")) {
+                allOptions.add(parseTransportOption(option, "버스", (long) (result.getKorailOptions().size() + i + 1)));
+            }
+        }
+        
+        // 페이지네이션 적용
+        int startIndex = page * size;
+        int endIndex = Math.min(startIndex + size, allOptions.size());
+        
+        List<TransportOption> pageContent = allOptions.subList(startIndex, endIndex);
+        int totalPages = (int) Math.ceil((double) allOptions.size() / size);
+        
+        return new TransportPageResponse(pageContent, totalPages, allOptions.size(), page, size);
+    }
+
+    private TransportOption parseTransportOption(String optionString, String type, Long id) {
+        // 예: "KTX | 서울역 → 부산역 | 1023 → 1335 | 59800원"
+        String[] parts = optionString.split(" \\| ");
+        if (parts.length >= 4) {
+            String transportType = parts[0];
+            String route = parts[1];
+            String time = parts[2];
+            String price = parts[3];
+            
+            String[] routeParts = route.split(" → ");
+            String departure = routeParts[0].replace("역", "");
+            String arrival = routeParts[1].replace("역", "");
+            
+            String[] timeParts = time.split(" → ");
+            String departureTime = formatTime(timeParts[0]);
+            String arrivalTime = formatTime(timeParts[1]);
+            
+            return new TransportOption(id, transportType, departure, arrival, departureTime, arrivalTime, price);
+        }
+        
+        // 파싱 실패 시 기본값 반환
+        return new TransportOption(id, type, "출발지", "도착지", "00:00", "00:00", "0원");
+    }
+
+    private String formatTime(String time) {
+        // "1023" -> "10:23"
+        if (time.length() == 4) {
+            return time.substring(0, 2) + ":" + time.substring(2, 4);
+        }
+        return time;
+    }
+
     private String formatDate(String rawDate) {
-        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-        LocalDate date = LocalDate.parse(rawDate, inputFormatter);
+        LocalDate date;
+        
+        // yyyy-MM-dd 형식인지 확인
+        if (rawDate.contains("-")) {
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            date = LocalDate.parse(rawDate, inputFormatter);
+        } else {
+            // yyyyMMdd 형식
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            date = LocalDate.parse(rawDate, inputFormatter);
+        }
+        
         return date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     }
 

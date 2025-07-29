@@ -77,7 +77,14 @@ public class ScheduleService {
 				newPlace.setLng(placeDto.getLng());
 				newPlace.setDate(response.getDate()); // Assigning the schedule's date to the place
 				newPlace.setCategory(placeDto.getCategoryCode()); // Map categoryCode from DTO to category in Entity
-				newPlace.setImageUrl(placeDto.getPhotoUrl()); // Map photoUrl from DTO to imageUrl in Entity
+				
+				// 이미지 URL 길이 제한 (3000자)
+				String imageUrl = placeDto.getPhotoUrl();
+				if (imageUrl != null && imageUrl.length() > 3000) {
+					imageUrl = imageUrl.substring(0, 3000);
+				}
+				newPlace.setImageUrl(imageUrl); // Map photoUrl from DTO to imageUrl in Entity
+				
 				newPlace.setSchedule(entity);
 				entity.getPlaces().add(newPlace);
 			}
@@ -140,6 +147,15 @@ public class ScheduleService {
 				newPlace.setLat(placeDto.getLat());
 				newPlace.setLng(placeDto.getLng());
 				newPlace.setDate(placeDto.getDate()); // Set the date for each place
+				newPlace.setCategory(placeDto.getCategory()); // 카테고리 설정
+				
+				// 이미지 URL 길이 제한 (3000자)
+				String imageUrl = placeDto.getPhotoUrl();
+				if (imageUrl != null && imageUrl.length() > 3000) {
+					imageUrl = imageUrl.substring(0, 3000);
+				}
+				newPlace.setImageUrl(imageUrl); // 이미지 URL 설정
+				
 				newPlace.setSchedule(schedule);
 				schedule.getPlaces().add(newPlace);
 			}
@@ -215,6 +231,16 @@ public class ScheduleService {
 
 	public ScheduleDTO createSchedule(ScheduleCreateRequest request, Long userId) {
 		 System.out.println("Request received: " + request);
+        System.out.println("User ID: " + userId);
+        System.out.println("Departure: " + request.getDeparture());
+        System.out.println("Arrival: " + request.getArrival());
+        System.out.println("Date: " + request.getDate());
+        System.out.println("Days: " + request.getDays());
+        System.out.println("Transport Type: " + request.getTransportType());
+        System.out.println("Start Time: " + request.getStartTime());
+        System.out.println("End Time: " + request.getEndTime());
+        System.out.println("Places count: " + (request.getPlaces() != null ? request.getPlaces().size() : 0));
+        
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
@@ -252,7 +278,16 @@ public class ScheduleService {
                     place.setCategory(dto.getCategory());
                     place.setLat(dto.getLat());
                     place.setLng(dto.getLng());
+                    place.setAddress(dto.getAddress());
                     place.setDate(dto.getDate());
+                    
+                    // 이미지 URL 길이 제한 (3000자)
+                    String imageUrl = dto.getPhotoUrl();
+                    if (imageUrl != null && imageUrl.length() > 3000) {
+                        imageUrl = imageUrl.substring(0, 3000);
+                    }
+                    place.setImageUrl(imageUrl);
+                    
                     place.setSchedule(schedule); // 연관관계 설정
                     return place;
                 })
@@ -298,7 +333,14 @@ public class ScheduleService {
                 newPlace.setLng(originalPlace.getLng());
                 newPlace.setDate(originalPlace.getDate());
                 newPlace.setCategory(originalPlace.getCategory());
-                newPlace.setImageUrl(originalPlace.getImageUrl());
+                
+                // 이미지 URL 길이 제한 (3000자)
+                String imageUrl = originalPlace.getImageUrl();
+                if (imageUrl != null && imageUrl.length() > 3000) {
+                    imageUrl = imageUrl.substring(0, 3000);
+                }
+                newPlace.setImageUrl(imageUrl);
+                
                 newPlace.setSchedule(newSchedule);
                 return newPlace;
             }).collect(Collectors.toList());

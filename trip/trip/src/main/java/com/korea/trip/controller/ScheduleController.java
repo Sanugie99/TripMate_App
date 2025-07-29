@@ -52,9 +52,13 @@ public class ScheduleController {
 	    @RequestBody ScheduleCreateRequest request,
 	    @CurrentUser UserPrincipal currentUser) {
 	    try {
+	        System.out.println("Creating schedule for user: " + currentUser.getId());
+	        System.out.println("Request data: " + request);
 	        ScheduleDTO savedSchedule = scheduleService.createSchedule(request, currentUser.getId());
 	        return ResponseEntity.status(HttpStatus.CREATED).body(savedSchedule);
 	    } catch (Exception e) {
+	        System.err.println("Error creating schedule: " + e.getMessage());
+	        e.printStackTrace();
 	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
 	    }
 	}

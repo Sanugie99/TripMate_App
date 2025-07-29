@@ -17,19 +17,38 @@ const ScheduleResult = ({ schedule, selectedDate, setSelectedDate, onPlaceClick 
     </TouchableOpacity>
   );
 
-  const renderPlaceCard = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => onPlaceClick(item)}>
-      <Image
-        style={styles.placeImage}
-        source={{ uri: item.photoUrl || 'https://via.placeholder.com/150' }}
-      />
-      <View style={styles.cardContent}>
-        <Text style={styles.placeName}>{item.name}</Text>
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.address}>{item.address}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderPlaceCard = ({ item }) => {
+    // 이미지 URL 처리 로직 개선
+    const getImageUrl = () => {
+      if (item.photoUrl && item.photoUrl.trim() !== '' && item.photoUrl !== 'null') {
+        return item.photoUrl;
+      }
+      if (item.imageUrl && item.imageUrl.trim() !== '' && item.imageUrl !== 'null') {
+        return item.imageUrl;
+      }
+      // 더 안정적인 기본 이미지 사용
+      return 'https://picsum.photos/150/150';
+    };
+
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => onPlaceClick(item)}>
+        <Image
+          style={styles.placeImage}
+          source={{ uri: getImageUrl() }}
+          onError={(e) => {
+            console.log('Image load error for:', item.name, 'URL:', getImageUrl());
+            e.target.source = { uri: 'https://picsum.photos/150/150' };
+          }}
+          defaultSource={{ uri: 'https://picsum.photos/150/150' }}
+        />
+        <View style={styles.cardContent}>
+          <Text style={styles.placeName}>{item.name}</Text>
+          <Text style={styles.category}>{item.category}</Text>
+          <Text style={styles.address}>{item.address}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
