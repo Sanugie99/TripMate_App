@@ -25,32 +25,35 @@ const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   const { user } = useAuth();
+
   return (
-    <Stack.Navigator initialRouteName={user ? "Main" : "Login"}>
+    <Stack.Navigator
+      initialRouteName={user ? "Main" : "Login"}
+      screenOptions={{ headerShown: false }} // 모든 화면에서 헤더 제거
+    >
       {user ? (
         <>
-          <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }}/>
-
-          <Stack.Screen name="Step1Destination" component={Step1DestinationScreen} options={{ title: '여행 계획 시작하기' }}/>
-          <Stack.Screen name="Step2DateSelect" component={Step2DateSelectScreen} options={{ title: '날짜 선택' }}/>
-          <Stack.Screen name="Step3TimeSelect" component={Step3TimeSelectScreen} options={{ title: '시간 선택' }}/>
-          <Stack.Screen name="Step4TransportSelect" component={Step4TransportSelectScreen} options={{ title: '교통편 선택' }}/>
-          <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} options={{ title: '일정 만들기' }}/>
-          <Stack.Screen name="ScheduleDetail" component={ScheduleDetailScreen} options={{ title: '일정 상세' }}/>
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: '프로필 수정' }}/>
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Step1Destination" component={Step1DestinationScreen} />
+          <Stack.Screen name="Step2DateSelect" component={Step2DateSelectScreen} />
+          <Stack.Screen name="Step3TimeSelect" component={Step3TimeSelectScreen} />
+          <Stack.Screen name="Step4TransportSelect" component={Step4TransportSelectScreen} />
+          <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} />
+          <Stack.Screen name="ScheduleDetail" component={ScheduleDetailScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="MySchedules" component={MySchedulesScreen} />
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }}/>
-          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ title: '회원가입' }}/>
-          <Stack.Screen name="FindId" component={FindIdScreen} options={{ title: '아이디 찾기' }}/>
-          <Stack.Screen name="FindPassword" component={FindPasswordScreen} options={{ title: '비밀번호 찾기' }}/>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="FindId" component={FindIdScreen} />
+          <Stack.Screen name="FindPassword" component={FindPasswordScreen} />
         </>
       )}
     </Stack.Navigator>
   );
-}
+};
 
 function App() {
   return (
