@@ -25,7 +25,7 @@ const Step2DateSelectScreen = ({ route }) => {
       setStartDate(selectedDate);
       setEndDate(null);
     } else if (selectedDate < startDate) {
-      // 시작일보다 이전 날짜 선택 시, 새로운 선택 시작
+      // 시작일보다 이전  시, 새로운 선택 시작
       setStartDate(selectedDate);
       setEndDate(null);
     } else {
@@ -144,7 +144,7 @@ const Step2DateSelectScreen = ({ route }) => {
             <TouchableOpacity onPress={() => setCalendarVisible(false)}>
               <Text style={styles.modalCloseText}>닫기</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>날짜 선택</Text>
+            
             <View style={styles.placeholder} />
           </View>
           

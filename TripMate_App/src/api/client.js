@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 
 // TODO: 실제 배포 시에는 .env 파일 등으로 관리하는 것이 좋습니다.
-const BASE_URL = 'http://192.168.3.12:5000';
+const BASE_URL = 'http://192.168.3.11:5000';
 
 const client = axios.create({
   baseURL: BASE_URL,
