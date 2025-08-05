@@ -25,6 +25,7 @@ const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   const { user } = useAuth();
+
   return (
     <Stack.Navigator initialRouteName={user ? "Main" : "Login"} >
       {user ? (
@@ -42,15 +43,15 @@ const AppNavigator = () => {
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }}/>
-          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ title: '회원가입' }}/>
-          <Stack.Screen name="FindId" component={FindIdScreen} options={{ title: '아이디 찾기' }}/>
-          <Stack.Screen name="FindPassword" component={FindPasswordScreen} options={{ title: '비밀번호 찾기' }}/>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="FindId" component={FindIdScreen} />
+          <Stack.Screen name="FindPassword" component={FindPasswordScreen} />
         </>
       )}
     </Stack.Navigator>
   );
-}
+};
 
 function App() {
   const navigationRef = useRef(null);
